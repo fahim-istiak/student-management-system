@@ -1,94 +1,93 @@
-$(document).ready(function() {
-    loadStudents();
+function StudentViewModel() {
+    const self = this;
+    
+    // Default avatar as a data URL (a simple gray circle)
+    const DEFAULT_AVATAR = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI2NjY2NjYyIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44NCAyLjE3IDQuODQgNC44NCAwIDIuNjctMi4xNyA0Ljg0LTQuODQgNC44NC0yLjY3IDAtNC44NC0yLjE3LTQuODQtNC44NCAwLTIuNjcgMi4xNy00Ljg0IDQuODQtNC44NHptMCAxMmM0LjQyIDAgOC4xNy0yLjI4IDkuNTQtNS41MkgyLjQ2YzEuMzcgMy4yNCA1LjEyIDUuNTIgOS41NCA1LjUyeiIvPjwvc3ZnPg==';
 
-    $('form').on('submit', function(e) {
-        e.preventDefault();
+    self.students = ko.observableArray([]);
+    self.searchQuery = ko.observable('');
+    self.isEditMode = ko.observable(false);
+    self.newStudent = {
+        firstName: ko.observable(''),
+        lastName: ko.observable(''),
+        age: ko.observable(''),
+        photoUrl: ko.observable(DEFAULT_AVATAR)
+    };
+
+    self.filteredStudents = ko.computed(function() {
+        const query = self.searchQuery().toLowerCase();
+        if (!query) return self.students();
         
-        const firstName = $('#firstName').val();
-        const lastName = $('#lastName').val();
-        const age = $('#age').val();
-        const photoFile = $('#photo')[0].files[0];
-        
-        if (!firstName || !lastName || !age) {
+        return self.students().filter(function(student) {
+            return student.firstName.toLowerCase().includes(query) || 
+                   student.lastName.toLowerCase().includes(query);
+        });
+    });
+
+    self.loadStudents = function() {
+        const savedStudents = JSON.parse(localStorage.getItem('students') || '[]');
+        self.students(savedStudents);
+    };
+
+    self.saveStudent = function() {
+        if (!self.newStudent.firstName() || !self.newStudent.lastName() || !self.newStudent.age()) {
             alert('Please fill in all required fields');
             return;
         }
-        
-        let photoUrl = 'default-avatar.png';
-        if (photoFile) {
-            photoUrl = URL.createObjectURL(photoFile);
-        }
-        
+
         const student = {
-            firstName: firstName,
-            lastName: lastName,
-            age: age,
-            photoUrl: photoUrl
+            firstName: self.newStudent.firstName(),
+            lastName: self.newStudent.lastName(),
+            age: self.newStudent.age(),
+            photoUrl: self.newStudent.photoUrl()
         };
-        
-        saveStudent(student);
-        addStudentToTable(student);
-        this.reset();
-    });
-    
-    $(document).on('click', '.btn-danger', function() {
-        if (confirm('Are you sure you want to delete this student?')) {
-            const row = $(this).closest('tr');
-            const firstName = row.find('td:eq(1)').text();
-            const lastName = row.find('td:eq(2)').text();
-            
-            deleteStudent(firstName, lastName);
-            row.remove();
+
+        self.students.push(student);
+
+        localStorage.setItem('students', JSON.stringify(self.students()));
+
+        self.newStudent.firstName('');
+        self.newStudent.lastName('');
+        self.newStudent.age('');
+        self.newStudent.photoUrl(DEFAULT_AVATAR);
+    };
+
+    self.deleteStudent = function(student) {
+            self.students.remove(student);
+            localStorage.setItem('students', JSON.stringify(self.students()));
+    };
+
+    self.editStudent = function(student) {
+        self.isEditMode(true);
+        self.newStudent.firstName(student.firstName);
+        self.newStudent.lastName(student.lastName);
+        self.newStudent.age(student.age);
+        self.newStudent.photoUrl(student.photoUrl);
+        self.students.remove(student);
+    };
+
+    self.handlePhotoUpload = function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                self.newStudent.photoUrl(e.target.result); // base64 string
+            };
+            reader.readAsDataURL(file); // Converts to base64
         }
-    });
+    };
     
-    $(document).on('click', '.btn-primary', function() {
-        const row = $(this).closest('tr');
-        const firstName = row.find('td:eq(1)').text();
-        const lastName = row.find('td:eq(2)').text();
-        const age = row.find('td:eq(3)').text();
-        
-        $('#firstName').val(firstName);
-        $('#lastName').val(lastName);
-        $('#age').val(age);
-        
-        row.remove();
-    });
-});
 
-function saveStudent(student) {
-    let students = JSON.parse(localStorage.getItem('students') || '[]');
-    students.push(student);
-    localStorage.setItem('students', JSON.stringify(students));
+    self.resetForm = function() {
+        self.isEditMode(false);
+        self.newStudent.firstName('');
+        self.newStudent.lastName('');
+        self.newStudent.age('');
+        self.newStudent.photoUrl(DEFAULT_AVATAR);
+    };
+    self.loadStudents();
 }
 
-function loadStudents() {
-    let students = JSON.parse(localStorage.getItem('students') || '[]');
-    students.forEach(student => {
-        addStudentToTable(student);
-    });
-}
-
-function deleteStudent(firstName, lastName) {
-    let students = JSON.parse(localStorage.getItem('students') || '[]');
-    students = students.filter(student => 
-        !(student.firstName === firstName && student.lastName === lastName)
-    );
-    localStorage.setItem('students', JSON.stringify(students));
-}
-
-function addStudentToTable(student) {
-    const newRow = `
-        <tr>
-            <td><img src="${student.photoUrl}" alt="Student Photo" class="img-responsive img-circle" style="width: 50px; height: 50px;"></td>
-            <td>${student.firstName}</td>
-            <td>${student.lastName}</td>
-            <td>${student.age}</td>
-            <td>
-                <button class="btn btn-primary btn-xs action-btn">E</button>
-                <button class="btn btn-danger btn-xs action-btn">D</button>
-            </td>
-        </tr>
-    `;
-    $('tbody').append(newRow);
-} 
+$(document).ready(function() {
+    ko.applyBindings(new StudentViewModel());
+}); 
