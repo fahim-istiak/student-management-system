@@ -1,0 +1,86 @@
+@model IEnumerable<Student_Management_System__MVC_.Models.Student>
+
+@{
+    ViewBag.Title = "Index";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Student List</h2>
+    @Html.ActionLink("Create New", "Create", null, new { @class = "btn btn-primary" })
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <div class="input-group">
+            <input type="text" id="searchInput" class="form-control" placeholder="Search students..." data-bind="value: searchQuery, valueUpdate: 'afterkeydown'">
+            <div class="input-group-append">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Profile Picture</th>
+            <th>@Html.DisplayNameFor(model => model.FirstName)</th>
+            <th>@Html.DisplayNameFor(model => model.LastName)</th>
+            <th>@Html.DisplayNameFor(model => model.Age)</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody data-bind="foreach: filteredStudents">
+        <tr>
+            <td>
+                <!-- ko if: ImagePath -->
+                <img data-bind="attr: { src: $root.resolveImagePath(ImagePath) }" alt="Profile Picture" style="max-width: 50px; max-height: 50px;" />
+                <!-- /ko -->
+                <!-- ko ifnot: ImagePath -->
+                <img src="@Url.Content("~/Images/default-profile.png")" alt="Default Profile" style="max-width: 50px; max-height: 50px;" />
+                <!-- /ko -->
+            </td>
+            <td data-bind="text: FirstName"></td>
+            <td data-bind="text: LastName"></td>
+            <td data-bind="text: Age"></td>
+            <td>
+                <a data-bind="attr: { href: '/Student/Edit/' + Id }" class="btn btn-warning btn-sm">Edit</a> |
+                <a data-bind="attr: { href: '/Student/Delete/' + Id }" class="btn btn-danger btn-sm">Delete</a>
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.5.1/knockout-latest.min.js"></script>
+    <script>
+        function StudentViewModel() {
+            var self = this;
+            
+            // Observable for search query
+            self.searchQuery = ko.observable('');
+            
+            // Observable array for students
+            self.students = ko.observableArray(@Html.Raw(Json.Encode(Model)));
+            
+            self.resolveImagePath = function(path) {
+                if (!path) return '';
+                return path.replace('~', '');
+            };
+            
+            // Computed observable for filtered students
+            self.filteredStudents = ko.computed(function() {
+                var search = self.searchQuery().toLowerCase();
+                return ko.utils.arrayFilter(self.students(), function(student) {
+                    return student.FirstName.toLowerCase().indexOf(search) !== -1 ||
+                           student.LastName.toLowerCase().indexOf(search) !== -1 ||
+                           student.Age.toString().indexOf(search) !== -1;
+                });
+            });
+        }
+
+        $(document).ready(function() {
+            ko.applyBindings(new StudentViewModel());
+        });
+    </script>
+} 
